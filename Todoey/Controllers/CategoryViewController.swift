@@ -7,15 +7,15 @@
 //
 
 import UIKit
-import CoreData
+import RealmSwift
 
 
 class CategoryViewController: UITableViewController {
 
-
-    var categoryList = [Category]()
+    let realm = try! Realm()
     
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    var categoryList: Results<Category>?
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -27,20 +27,16 @@ class CategoryViewController: UITableViewController {
     
     func loadCategoryList() {
         
-        let request : NSFetchRequest<Category> = Category.fetchRequest()
-        do {
-        categoryList = try context.fetch(request)
-        } catch {
-            print("Error loading category list \(error)")
-        }
+        categoryList = realm.objects(Category.self)
         
-        tableView.reloadData()
+ 
+       tableView.reloadData()
     }
     
     //MARK: - TableView Datasource Methods
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return categoryList.count
+        return categoryList?.count ?? 1
         
     }
     
@@ -49,10 +45,9 @@ class CategoryViewController: UITableViewController {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
         
-        let itemCategory = categoryList[indexPath.row]
+        let itemCategory = categoryList?[indexPath.row]
         
-        cell.textLabel?.text = categoryList[indexPath.row].name
-        
+        cell.textLabel?.text = categoryList?[indexPath.row].name ?? "No category list added jet"
         
         return cell
         
@@ -70,15 +65,17 @@ class CategoryViewController: UITableViewController {
         let destinationVC = segue.destination as! ToDoListViewController
         
        if let indexPath = tableView.indexPathForSelectedRow {
-            destinationVC.selectedCategory = categoryList[indexPath.row]
+            destinationVC.selectedCategory = categoryList?[indexPath.row]
         }
     }
     
     //MARK: - TableView Manipulation Methods
     
-    func saveCategoryList() {
+    func save(category: Category) {
         do {
-        try context.save()
+            try realm.write {
+                realm.add(category)
+            }
         } catch {
             print("Error saving category \(error)")
         }
@@ -98,12 +95,11 @@ class CategoryViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add", style: .default) { (action) in
             
-            let newCategory = Category(context: self.context)
+            let newCategory = Category()
             newCategory.name = textField.text!
+
             
-            self.categoryList.append(newCategory)
-            
-            self.saveCategoryList()
+            self.save(category: newCategory)
             
         }
             
