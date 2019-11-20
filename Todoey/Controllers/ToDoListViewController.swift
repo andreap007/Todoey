@@ -8,9 +8,11 @@
 
 import UIKit
 import RealmSwift
+import ChameleonFramework
 
-class ToDoListViewController: UITableViewController {
+class ToDoListViewController: SwipeTableViewController {
     
+    @IBOutlet weak var searchBar: UISearchBar!
     var todoItems: Results<Item>?
     let realm = try! Realm()
     
@@ -21,14 +23,41 @@ class ToDoListViewController: UITableViewController {
     }
     
     let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    //let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view.
         
+        tableView.separatorStyle = .none
+        
+       tableView.rowHeight = 80.0
+        
+    
+        }
+        
+    override func viewWillAppear(_ animated: Bool) {
+            
+            if let colorHex = selectedCategory?.color {
+                
+                title = selectedCategory!.name
+                
+                guard let navBar = navigationController?.navigationBar else {fatalError("Navigation controller does not exist")}
+                
+                if let navBarColor = UIColor(hexString: colorHex) {
+                    
+                    navBar.barTintColor = navBarColor
+                    
+                    navBar.largeTitleTextAttributes = [NSAttributedString.Key.foregroundColor : ContrastColorOf(navBarColor, returnFlat: true)]
+                    
+                    navBar.tintColor = ContrastColorOf(navBarColor, returnFlat: true)
+                    
+                    searchBar.barTintColor = navBarColor
+                }
+            }
+        }
 
-    }
+    
     
     //MARK: - TableView Datasource Methods
     
@@ -38,7 +67,7 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
-         let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
         if let item = todoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
@@ -46,7 +75,17 @@ class ToDoListViewController: UITableViewController {
             
             cell.accessoryType = item.done ? .checkmark : .none
             
-//            return cell
+            if let color = UIColor(hexString: selectedCategory!.color)?.darken(byPercentage: CGFloat(indexPath.row) / CGFloat(todoItems!.count)) {
+                
+                cell.backgroundColor = color
+                cell.textLabel?.textColor = ContrastColorOf(color, returnFlat: true)
+            }
+            
+            //version 1 = CGFloat(indexPath.row / todoItems?.count)
+            //version 2 = CGFloat(indexPath.row) / CGFloat(todoItems!.count)
+                
+    
+         return cell
         } else {
             "No Items Added"
         }
@@ -118,11 +157,11 @@ class ToDoListViewController: UITableViewController {
     func saveItems() {
         
         
-        do {
-            try context.save()
-        } catch {
-            print("Error saving context, \(error)")
-        }
+//        do {
+//            try context.save()
+//        } catch {
+//            print("Error saving context, \(error)")
+//        }
         
     }
     
@@ -133,7 +172,18 @@ class ToDoListViewController: UITableViewController {
         tableView.reloadData()
     }
     
-    
+    override func updateModel(at indexPath: IndexPath) {
+        
+        if let item = todoItems?[indexPath.row] {
+            do {
+            try realm.write {
+                realm.delete(item)
+                }
+            } catch {
+                print("Error Deleting Items, \(error)")
+            }
+        }
+    }
 }
    //MARK: - Search bar methods
 
